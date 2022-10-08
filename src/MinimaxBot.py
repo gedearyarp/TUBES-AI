@@ -1,10 +1,8 @@
+from Bot import Bot
 from GameAction import GameAction
 from GameState import GameState
 
-class MinimaxBot:
-    """
-    An interface for bot. Inherit it to create your own bots!
-    """
+class MinimaxBot(Bot):
     def get_action(self, state: GameState) -> GameAction:
         """
         Returns action based on state.

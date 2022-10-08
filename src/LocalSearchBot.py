@@ -1,10 +1,8 @@
+from Bot import Bot
 from GameAction import GameAction
 from GameState import GameState
 
-class LocalSearchBot:
-    """
-    An interface for bot. Inherit it to create your own bots!
-    """
+class LocalSearchBot(Bot):
     def get_action(self, state: GameState) -> GameAction:
         """
         Returns action based on state.
