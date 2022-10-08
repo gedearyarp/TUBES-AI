@@ -1,5 +1,6 @@
 from this import d
 from Bot import Bot
+from typing import Literal
 from GameAction import GameAction
 from GameState import GameState
 import numpy as np
@@ -52,11 +53,11 @@ class MinimaxBot(Bot):
         """
         return 0
 
-    def update_state(self, state: GameState, isRow: bool, x: int, y: int) -> GameState:
+    def update_state(self, state: GameState, action_type: Literal["row", "col"], x: int, y: int) -> GameState:
         """
             Fungsi yang mengembalikan GameState baru dari GameState lama
         """
-        if(isRow):
+        if(action_type == "row"):
             state.row_status[y, x] = 1
 
             if y != 3:
@@ -95,4 +96,10 @@ class MinimaxBot(Bot):
         """
             Fungsi yang mengembalikan GameAction dari 2 GameState.
         """
-        return 0
+        LEN_MAX = 4
+        for i in range(0, LEN_MAX):
+            for j in range(0, LEN_MAX):
+                if j < 3 and prev_state.row_status[i, j] != goal_state.row_status[i, j]:
+                    return GameAction("row", (i, j))
+                if i < 3 and prev_state.col_status[i, j] != goal_state.col_status[i, j]:
+                    return GameAction("col", (i, j))
