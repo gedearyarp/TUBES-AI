@@ -22,52 +22,66 @@ PLAYER_2 = 2
 DEPTH = 4
 
 class MinimaxBot(Bot):
+    player_number = None
+    next_state = None
+    
     def get_action(self, state: GameState) -> GameAction:
         self.player_number = 1 if state.player1_turn else 2
+        self.next_state = deepcopy(state)
+        # print(self.next_state)
+        
+        val = self.minimax(deepcopy(state), DEPTH, INT_MIN, INT_MAX, self.player_number)
+        
+        print(self.next_state, val)
 
-        next_state = self.minimax(None, deepcopy(state), DEPTH, INT_MIN, INT_MAX, self.player_number)[0]
+        return self.create_action(state, self.next_state)
 
-        return self.create_action(state, next_state)
-
-    def minimax(self, result_state: GameState, state: GameState, depth: int, alpha: int, beta: int, maximizing_player: int):
+    def minimax(self, state: GameState, depth: int, alpha: int, beta: int, maximizing_player: int):
         if depth == 0 or self.is_game_over(state):
-            return deepcopy(result_state), self.count_state_advantage(state)
+            # print(self.count_state_advantage(state))
+            return self.count_state_advantage(state)
 
-        if maximizing_player == PLAYER_1:
+        if maximizing_player == self.player_number:
             max_eval = INT_MIN
             
             for child in self.get_child_from_parent(state):
-                copy_child = deepcopy(child)
-                current_result_state = copy_child if result_state == None else deepcopy(result_state)
-                next_maximizing_player = PLAYER_1 if self.is_add_new_box(state, copy_child) else PLAYER_2
+                next_maximizing_player = PLAYER_1 if child.player1_turn else PLAYER_2
 
-                next_state, eval = self.minimax(deepcopy(current_result_state), copy_child, depth - 1, alpha, beta, next_maximizing_player)
-                max_eval = max(max_eval, eval)
+                eval = self.minimax(deepcopy(child), depth - 1, alpha, beta, next_maximizing_player)
+                
+                if max_eval == INT_MIN and depth == DEPTH:
+                    self.next_state = deepcopy(child)
+                
+                if eval > max_eval:
+                    max_eval = eval
+                    if depth == DEPTH:
+                        self.next_state = deepcopy(child)
+                
                 alpha = max(alpha, eval)
                 if alpha >= beta:
                     break
 
-            return next_state, max_eval
+            return max_eval
         else:
             min_eval = INT_MAX
 
             for child in self.get_child_from_parent(state):
-                copy_child = deepcopy(child)
-                current_result_state = deepcopy(child) if result_state == None else deepcopy(result_state)
-                next_maximizing_player = PLAYER_2 if self.is_add_new_box(state, copy_child) else PLAYER_1
+                next_maximizing_player = PLAYER_1 if child.player1_turn else PLAYER_2
                 
-                next_state, eval = self.minimax(deepcopy(current_result_state), copy_child, depth - 1, alpha, beta, next_maximizing_player)
+                eval = self.minimax(deepcopy(child), depth - 1, alpha, beta, next_maximizing_player)
+
                 min_eval = min(min_eval, eval)
                 beta = min(beta, eval)
                 if alpha >= beta:
                     break
 
-            return next_state, min_eval
+            return min_eval
 
     def count_state_advantage(self, state: GameState) -> int:
         player_one_score, player_two_score = self.count_score_player(state)
 
-        advantage = player_one_score - player_two_score
+        if self.player_number == PLAYER_1:
+            advantage = player_one_score - player_two_score
         if self.player_number == PLAYER_2:
             advantage = player_two_score - player_one_score
 
@@ -112,7 +126,9 @@ class MinimaxBot(Bot):
                 state.board_status[y, x-1] *= (-1 if state.player1_turn else 1)
         
         player_turn = deepcopy(state.player1_turn)
-        state = state._replace(player1_turn= not player_turn)
+        if not self.is_add_new_box(parent_state, state):
+            
+            state = state._replace(player1_turn= not player_turn)
 
         return state
 
@@ -125,30 +141,26 @@ class MinimaxBot(Bot):
                     return GameAction(COL, (x, y))
 
     def is_add_new_box(self, prev_state: GameState, new_state: GameState) -> bool:
-        result = False
-
         if prev_state.player1_turn :
-            parent_player_one_box = self.count_box(prev_state, PLAYER_1)
+            prev_player_one_box = self.count_box(prev_state, PLAYER_1)
             new_player_one_box = self.count_box(new_state, PLAYER_1)
 
-            result = parent_player_one_box > new_player_one_box
+            result = (prev_player_one_box < new_player_one_box)
         else:
-            prev_state = self.count_box(prev_state, PLAYER_2)
+            prev_player_two_box = self.count_box(prev_state, PLAYER_2)
             new_player_two_box = self.count_box(new_state, PLAYER_2)
 
-            result = prev_state > new_player_two_box
+            result = (prev_player_two_box < new_player_two_box)
 
         return result
 
-    def count_score_player(self, state: GameState):
+    def count_score_player(self, state: GameState) -> tuple:
         player_one_score = self.count_box(state, PLAYER_1)
         player_two_score = self.count_box(state, PLAYER_2)
 
         return player_one_score, player_two_score
 
     def count_box(self, state: GameState, player: int) -> int:
-        result = 0
-        
         if player == PLAYER_1:
             player_one_box = np.argwhere(state.board_status == -MAX_BOX_LINE)
             result = len(player_one_box)
@@ -158,5 +170,5 @@ class MinimaxBot(Bot):
 
         return result
 
-    def is_game_over(self, state: GameState):
+    def is_game_over(self, state: GameState) -> bool:
         return (state.row_status == 1).all() and (state.col_status == 1).all()
