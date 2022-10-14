@@ -28,17 +28,13 @@ class MinimaxBot(Bot):
     def get_action(self, state: GameState) -> GameAction:
         self.player_number = 1 if state.player1_turn else 2
         self.next_state = deepcopy(state)
-        # print(self.next_state)
         
-        val = self.minimax(deepcopy(state), DEPTH, INT_MIN, INT_MAX, self.player_number)
-        
-        print(self.next_state, val)
+        _ = self.minimax(deepcopy(state), DEPTH, INT_MIN, INT_MAX, self.player_number)
 
         return self.create_action(state, self.next_state)
 
     def minimax(self, state: GameState, depth: int, alpha: int, beta: int, maximizing_player: int):
         if depth == 0 or self.is_game_over(state):
-            # print(self.count_state_advantage(state))
             return self.count_state_advantage(state)
 
         if maximizing_player == self.player_number:
@@ -49,14 +45,10 @@ class MinimaxBot(Bot):
 
                 eval = self.minimax(deepcopy(child), depth - 1, alpha, beta, next_maximizing_player)
                 
-                if max_eval == INT_MIN and depth == DEPTH:
+                if depth == DEPTH and eval > max_eval:
                     self.next_state = deepcopy(child)
                 
-                if eval > max_eval:
-                    max_eval = eval
-                    if depth == DEPTH:
-                        self.next_state = deepcopy(child)
-                
+                max_eval = max(max_eval, eval)
                 alpha = max(alpha, eval)
                 if alpha >= beta:
                     break
