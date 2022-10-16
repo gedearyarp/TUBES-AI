@@ -4,8 +4,6 @@ from GameState import GameState
 from numpy import zeros
 import sys
 
-INT_MIN = -sys.maxsize - 1
-
 LEN_BOX = 4
 MAX_BOX_LINE = 4
 
@@ -31,7 +29,7 @@ class LocalSearchBot(Bot):
         for i in range(0, x):
             for j in range(0, y):
                 if status[i, j] == 1:
-                    self.successorValue[a][i,j] = INT_MIN
+                    self.successorValue[a][i,j] = -999
                 if status[i, j] == 0:
                     if (a == 0 and i == 0) or (a == 1 and j == 0):
                         if abs(self.initialState.board_status[i, j]) <= 1:
@@ -63,7 +61,7 @@ class LocalSearchBot(Bot):
                             self.successorValue[a][i,j] = 0
 
     def getNeighbor(self):
-        max = INT_MIN
+        max = -999
         maxAction = None
         for i in range (0, LEN_BOX):
             for j in range (0, LEN_BOX-1):
