@@ -19,10 +19,10 @@ COL = "col"
 PLAYER_1 = 1
 PLAYER_2 = 2
 
-FULL_BOX_WEIGHT = 10
+FULL_BOX_WEIGHT = 40
 
 MIN_DEPTH = 1
-MAX_DEPTH = 3
+MAX_DEPTH = 4
 
 class MinimaxBot(Bot):
     start_time = None
@@ -198,13 +198,24 @@ class MinimaxBot(Bot):
         board_status = deepcopy(state.board_status)
         board_visited = np.zeros((DOT_SIZE - 1, DOT_SIZE - 1), dtype=int)
 
-        chain_advantage = []
+        closed_chain_advantage = []
         for y in range(0, DOT_SIZE - 1):
             for x in range(0, DOT_SIZE - 1):
                 if board_visited[y, x] == 0 and (abs(board_status[y, x]) == 3):
-                    chain_advantage.append(self.count_chain(state, board_status, board_visited, y, x))
-        chain_advantage = [x for x in chain_advantage if x >= 3]
-        return (FULL_BOX_WEIGHT * sum(chain_advantage)) if chain_advantage else 0
+                    closed_chain_advantage.append(self.count_chain(state, board_status, board_visited, y, x))
+        closed_chain_advantage = [x for x in closed_chain_advantage if x >= 3]
+
+        open_chain_advantage = []
+        for y in range(0, DOT_SIZE - 1):
+            for x in range(0, DOT_SIZE - 1):
+                if board_visited[y, x] == 0 and (abs(board_status[y, x]) == 2):
+                    open_chain_advantage.append(self.count_chain(state, board_status, board_visited, y, x))
+        open_chain_advantage = [x for x in open_chain_advantage if x >= 3]
+
+        result = 23 * sum(closed_chain_advantage)
+        result += 33 if len(open_chain_advantage) % 2 == 0 else 0
+
+        return result
     
     def count_chain(self, state: GameState, board_status: np.ndarray, board_visited: np.ndarray, y: int, x: int) -> int:
         if y < 0 or y >= DOT_SIZE - 1 or x < 0 or x >= DOT_SIZE - 1 or abs(board_status[y, x]) <= 1 or board_visited[y, x] == 1:
