@@ -11,14 +11,10 @@ import sys
 INT_MAX = sys.maxsize
 INT_MIN = -sys.maxsize - 1
 
-MAX_LINE_MARK = 4
-MAX_BOX_LINE = 4
+DOT_SIZE = 4
 
 ROW = "row"
 COL = "col"
-
-LEN_ROW = 3
-LEN_COL = 3
 
 PLAYER_1 = 1
 PLAYER_2 = 2
@@ -98,13 +94,13 @@ class MinimaxBot(Bot):
     
     def get_child_from_parent(self, state: GameState) -> list:
         child_list = []
-        for y in range(0, MAX_LINE_MARK):
-            for x in range(0, MAX_LINE_MARK):
+        for y in range(0, DOT_SIZE):
+            for x in range(0, DOT_SIZE):
                 curr_state = deepcopy(state)
-                if x < 3 and curr_state.row_status[y, x] == 0:
+                if x < (DOT_SIZE - 1) and curr_state.row_status[y, x] == 0:
                     new_state = self.update_state(curr_state, ROW, y, x)
                     child_list.append(new_state)
-                if y < 3 and curr_state.col_status[y, x] == 0:
+                if y < (DOT_SIZE - 1) and curr_state.col_status[y, x] == 0:
                     new_state = self.update_state(curr_state, COL, y, x)
                     child_list.append(new_state)
 
@@ -116,7 +112,7 @@ class MinimaxBot(Bot):
         if(action_type == ROW):
             state.row_status[y, x] = 1
 
-            if y != 3:
+            if y != (DOT_SIZE - 1):
                 state.board_status[y, x] = abs(state.board_status[y, x]) + 1
                 state.board_status[y, x] *= (-1 if state.player1_turn else 1)
 
@@ -126,7 +122,7 @@ class MinimaxBot(Bot):
         else:
             state.col_status[y, x] = 1
 
-            if x != 3:
+            if x != (DOT_SIZE - 1):
                 state.board_status[y, x] = abs(state.board_status[y, x]) + 1
                 state.board_status[y, x] *= (-1 if state.player1_turn else 1)
             
@@ -141,11 +137,11 @@ class MinimaxBot(Bot):
         return state
 
     def create_action(self, prev_state: GameState, new_state: GameState) -> GameAction:
-        for y in range(0, MAX_LINE_MARK):
-            for x in range(0, MAX_LINE_MARK):
-                if x < 3 and prev_state.row_status[y, x] != new_state.row_status[y, x]:
+        for y in range(0, DOT_SIZE):
+            for x in range(0, DOT_SIZE):
+                if x < (DOT_SIZE - 1) and prev_state.row_status[y, x] != new_state.row_status[y, x]:
                     return GameAction(ROW, (x, y))
-                if y < 3 and prev_state.col_status[y, x] != new_state.col_status[y, x]:
+                if y < (DOT_SIZE - 1) and prev_state.col_status[y, x] != new_state.col_status[y, x]:
                     return GameAction(COL, (x, y))
 
     def is_add_new_box(self, prev_state: GameState, new_state: GameState) -> bool:
@@ -170,10 +166,10 @@ class MinimaxBot(Bot):
 
     def count_box(self, state: GameState, player: int) -> int:
         if player == PLAYER_1:
-            player_one_box = np.argwhere(state.board_status == -MAX_BOX_LINE)
+            player_one_box = np.argwhere(state.board_status == -DOT_SIZE)
             result = len(player_one_box)
         else:
-            player_two_box = np.argwhere(state.board_status == MAX_BOX_LINE)
+            player_two_box = np.argwhere(state.board_status == DOT_SIZE)
             result = len(player_two_box)
 
         return result
@@ -192,25 +188,26 @@ class MinimaxBot(Bot):
             advantage = FULL_BOX_WEIGHT * (player_two_score - player_one_score)
 
         if self.player_number == player:
-            advantage += FULL_BOX_WEIGHT * chain_advantage
+            advantage += chain_advantage
         else:
-            advantage -= FULL_BOX_WEIGHT * chain_advantage
+            advantage -= chain_advantage
 
         return advantage
 
     def count_chain_advantage(self, state: GameState) -> int:
         board_status = deepcopy(state.board_status)
-        board_visited = np.zeros((LEN_ROW, LEN_COL), dtype=int)
+        board_visited = np.zeros((DOT_SIZE - 1, DOT_SIZE - 1), dtype=int)
 
         chain_advantage = []
-        for y in range(0, LEN_ROW):
-            for x in range(0, LEN_COL):
-                if board_visited[y, x] == 0 and abs(board_status[y, x]) == 3:
+        for y in range(0, DOT_SIZE - 1):
+            for x in range(0, DOT_SIZE - 1):
+                if board_visited[y, x] == 0 and (abs(board_status[y, x]) == 3):
                     chain_advantage.append(self.count_chain(state, board_status, board_visited, y, x))
-        return sum(chain_advantage) if chain_advantage else 0
+        chain_advantage = [x for x in chain_advantage if x >= 3]
+        return (FULL_BOX_WEIGHT * sum(chain_advantage)) if chain_advantage else 0
     
     def count_chain(self, state: GameState, board_status: np.ndarray, board_visited: np.ndarray, y: int, x: int) -> int:
-        if y < 0 or y >= LEN_ROW or x < 0 or x >= LEN_COL or abs(board_status[y, x]) <= 1 or board_visited[y, x] == 1:
+        if y < 0 or y >= DOT_SIZE - 1 or x < 0 or x >= DOT_SIZE - 1 or abs(board_status[y, x]) <= 1 or board_visited[y, x] == 1:
             return 0
 
         board_visited[y, x] = 1
