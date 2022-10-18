@@ -212,8 +212,8 @@ class MinimaxBot(Bot):
                     open_chain_advantage.append(self.count_chain(state, board_status, board_visited, y, x))
         open_chain_advantage = [x for x in open_chain_advantage if x >= 3]
 
-        result = 23 * sum(closed_chain_advantage)
-        result += 33 if len(open_chain_advantage) % 2 == 0 else 0
+        result = 20 * sum(closed_chain_advantage)
+        result -= 80 if len(open_chain_advantage) == 2 else 0
 
         return result
     
