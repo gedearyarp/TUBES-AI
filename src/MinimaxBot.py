@@ -21,8 +21,8 @@ PLAYER_2 = 2
 
 FULL_BOX_WEIGHT = 40
 
-MIN_DEPTH = 1
-MAX_DEPTH = 4
+MIN_DEPTH = 3
+MAX_DEPTH = 3
 
 class MinimaxBot(Bot):
     start_time = None
@@ -38,10 +38,6 @@ class MinimaxBot(Bot):
         for i in range(MIN_DEPTH, MAX_DEPTH+1):
             self.current_depth = i
             _ = self.minimax(deepcopy(state), i, INT_MIN, INT_MAX, self.player_number)
-        
-        print("====================")
-        print(self.next_state)
-        print(self.is_depth_success)
 
         for i in range(MAX_DEPTH, MIN_DEPTH-1, -1):
             if self.is_depth_success[i - MIN_DEPTH]:
@@ -179,7 +175,7 @@ class MinimaxBot(Bot):
 
     def count_state_advantage(self, state: GameState, player: int) -> int:
         player_one_score, player_two_score = self.count_score_player(state)
-        chain_advantage = self.count_chain_advantage(state)
+        chain_advantage = self.count_chain_advantage(state, player_one_score + player_two_score)
 
         if self.player_number == PLAYER_1:
             advantage = FULL_BOX_WEIGHT * (player_one_score - player_two_score)
@@ -194,7 +190,7 @@ class MinimaxBot(Bot):
 
         return advantage
 
-    def count_chain_advantage(self, state: GameState) -> int:
+    def count_chain_advantage(self, state: GameState, total_score: int) -> int:
         board_status = deepcopy(state.board_status)
         board_visited = np.zeros((DOT_SIZE - 1, DOT_SIZE - 1), dtype=int)
 
@@ -212,8 +208,9 @@ class MinimaxBot(Bot):
                     open_chain_advantage.append(self.count_chain(state, board_status, board_visited, y, x))
         open_chain_advantage = [x for x in open_chain_advantage if x >= 3]
 
-        result = 20 * sum(closed_chain_advantage)
-        result -= 80 if len(open_chain_advantage) == 2 else 0
+        result = 40 * sum(closed_chain_advantage)
+        result -= 1000 if len(open_chain_advantage) == 2 and sum(open_chain_advantage) + total_score == 9 else 0
+        result -= 1000 if len(open_chain_advantage) == 1 and sum(open_chain_advantage) + total_score == 8 else 0
 
         return result
     
