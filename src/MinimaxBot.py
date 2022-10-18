@@ -4,38 +4,62 @@ from typing import Literal
 from GameAction import GameAction
 from GameState import GameState
 from copy import deepcopy
+import time
 import numpy as np
 import sys
 
 INT_MAX = sys.maxsize
 INT_MIN = -sys.maxsize - 1
 
-LEN_BOX = 4
+MAX_LINE_MARK = 4
 MAX_BOX_LINE = 4
 
 ROW = "row"
 COL = "col"
 
+LEN_ROW = 3
+LEN_COL = 3
+
 PLAYER_1 = 1
 PLAYER_2 = 2
 
-DEPTH = 4
+FULL_BOX_WEIGHT = 10
+
+MIN_DEPTH = 1
+MAX_DEPTH = 3
 
 class MinimaxBot(Bot):
+    start_time = None
     player_number = None
-    next_state = None
+    next_state = [None for i in range(MIN_DEPTH, MAX_DEPTH+1)]
+    is_depth_success = [True for i in range(MIN_DEPTH, MAX_DEPTH+1)]
+    current_depth = 0
     
     def get_action(self, state: GameState) -> GameAction:
-        self.player_number = 1 if state.player1_turn else 2
-        self.next_state = deepcopy(state)
-        
-        _ = self.minimax(deepcopy(state), DEPTH, INT_MIN, INT_MAX, self.player_number)
+        self.start_time = time.time()
+        self.player_number = PLAYER_1 if state.player1_turn else PLAYER_2
 
-        return self.create_action(state, self.next_state)
+        for i in range(MIN_DEPTH, MAX_DEPTH+1):
+            self.current_depth = i
+            _ = self.minimax(deepcopy(state), i, INT_MIN, INT_MAX, self.player_number)
+        
+        print("====================")
+        print(self.next_state)
+        print(self.is_depth_success)
+
+        for i in range(MAX_DEPTH, MIN_DEPTH-1, -1):
+            if self.is_depth_success[i - MIN_DEPTH]:
+                return self.create_action(state, self.next_state[i - MIN_DEPTH])
 
     def minimax(self, state: GameState, depth: int, alpha: int, beta: int, maximizing_player: int):
+        if time.time() - self.start_time > 4.9:
+            print(self.current_depth)
+            for i in range(self.current_depth, MAX_DEPTH+1):
+                self.is_depth_success[i - MIN_DEPTH] = False
+            return 0
+        
         if depth == 0 or self.is_game_over(state):
-            return self.count_state_advantage(state)
+            return self.count_state_advantage(state, maximizing_player)
 
         if maximizing_player == self.player_number:
             max_eval = INT_MIN
@@ -45,9 +69,12 @@ class MinimaxBot(Bot):
 
                 eval = self.minimax(deepcopy(child), depth - 1, alpha, beta, next_maximizing_player)
                 
-                if depth == DEPTH and eval > max_eval:
-                    self.next_state = deepcopy(child)
-                
+                if depth == self.current_depth and eval > max_eval:
+                    self.next_state[self.current_depth - MIN_DEPTH] = deepcopy(child)
+
+                if depth == self.current_depth and eval == max_eval:
+                    self.next_state[self.current_depth - MIN_DEPTH] = deepcopy(child) if np.random.randint(50)==25 else self.next_state[self.current_depth - MIN_DEPTH]
+
                 max_eval = max(max_eval, eval)
                 alpha = max(alpha, eval)
                 if alpha >= beta:
@@ -68,21 +95,11 @@ class MinimaxBot(Bot):
                     break
 
             return min_eval
-
-    def count_state_advantage(self, state: GameState) -> int:
-        player_one_score, player_two_score = self.count_score_player(state)
-
-        if self.player_number == PLAYER_1:
-            advantage = player_one_score - player_two_score
-        if self.player_number == PLAYER_2:
-            advantage = player_two_score - player_one_score
-
-        return advantage
     
     def get_child_from_parent(self, state: GameState) -> list:
         child_list = []
-        for y in range(0, LEN_BOX):
-            for x in range(0, LEN_BOX):
+        for y in range(0, MAX_LINE_MARK):
+            for x in range(0, MAX_LINE_MARK):
                 curr_state = deepcopy(state)
                 if x < 3 and curr_state.row_status[y, x] == 0:
                     new_state = self.update_state(curr_state, ROW, y, x)
@@ -119,14 +136,13 @@ class MinimaxBot(Bot):
         
         player_turn = deepcopy(state.player1_turn)
         if not self.is_add_new_box(parent_state, state):
-            
             state = state._replace(player1_turn= not player_turn)
 
         return state
 
     def create_action(self, prev_state: GameState, new_state: GameState) -> GameAction:
-        for y in range(0, LEN_BOX):
-            for x in range(0, LEN_BOX):
+        for y in range(0, MAX_LINE_MARK):
+            for x in range(0, MAX_LINE_MARK):
                 if x < 3 and prev_state.row_status[y, x] != new_state.row_status[y, x]:
                     return GameAction(ROW, (x, y))
                 if y < 3 and prev_state.col_status[y, x] != new_state.col_status[y, x]:
@@ -164,3 +180,60 @@ class MinimaxBot(Bot):
 
     def is_game_over(self, state: GameState) -> bool:
         return (state.row_status == 1).all() and (state.col_status == 1).all()
+
+    def count_state_advantage(self, state: GameState, player: int) -> int:
+        player_one_score, player_two_score = self.count_score_player(state)
+        chain_advantage = self.count_chain_advantage(state)
+
+        if self.player_number == PLAYER_1:
+            advantage = FULL_BOX_WEIGHT * (player_one_score - player_two_score)
+
+        if self.player_number == PLAYER_2:
+            advantage = FULL_BOX_WEIGHT * (player_two_score - player_one_score)
+
+        if self.player_number == player:
+            advantage += FULL_BOX_WEIGHT * chain_advantage
+        else:
+            advantage -= FULL_BOX_WEIGHT * chain_advantage
+
+        return advantage
+
+    def count_chain_advantage(self, state: GameState) -> int:
+        board_status = deepcopy(state.board_status)
+        board_visited = np.zeros((LEN_ROW, LEN_COL), dtype=int)
+
+        chain_advantage = []
+        for y in range(0, LEN_ROW):
+            for x in range(0, LEN_COL):
+                if board_visited[y, x] == 0 and abs(board_status[y, x]) == 3:
+                    chain_advantage.append(self.count_chain(state, board_status, board_visited, y, x))
+        return sum(chain_advantage) if chain_advantage else 0
+    
+    def count_chain(self, state: GameState, board_status: np.ndarray, board_visited: np.ndarray, y: int, x: int) -> int:
+        if y < 0 or y >= LEN_ROW or x < 0 or x >= LEN_COL or abs(board_status[y, x]) <= 1 or board_visited[y, x] == 1:
+            return 0
+
+        board_visited[y, x] = 1
+        
+        temp_advantage = 1
+        neighbor_box = self.generate_unmarked_line_neighbor_box(state, y, x)
+
+        for box in neighbor_box:
+            temp_advantage += self.count_chain(state, board_status, board_visited, box[0], box[1])
+
+        return temp_advantage
+
+    def generate_unmarked_line_neighbor_box(self, state: GameState, y: int, x:int) -> list:
+        neighbor_box = []
+
+        if y-1 >= 0 and state.row_status[y, x] == 0:
+            neighbor_box.append((y-1, x))
+        if y+1 <= 2 and state.row_status[y+1, x] == 0:
+            neighbor_box.append(((y+1, x)))
+
+        if x-1 >= 0 and state.col_status[y, x] == 0:
+            neighbor_box.append((y, x-1))
+        if x+1 <= 2 and state.col_status[y, x+1] == 0:
+            neighbor_box.append((y, x+1)) 
+
+        return neighbor_box
